@@ -31,8 +31,9 @@
 #include <stdint.h>
 #include <string.h>
 
-
-#include "sph/sph_shavite.h"
+#include "sph/sph_jh.h"
+#include "sph/sph_keccak.h" 
+#include "sph/sph_echo.h"
 
 /*
  * Encode a length len/4 vector of (uint32_t) into a length len vector of
@@ -47,27 +48,50 @@ be32enc_vect(uint32_t *dst, const uint32_t *src, uint32_t len)
 		dst[i] = htobe32(src[i]);
 }
 
-inline void inkhash(void *state, const void *input)
+
+inline void trihash(void *state, const void *input)
 {
-    uint32_t hash[16];
-    sph_shavite512_context ctx_shavite;
+    sph_jh512_context        ctx_jh;
+    sph_keccak512_context    ctx_keccak;
+    sph_echo512_context      ctx_echo;
+    
+    unsigned char hash[64];
 
-    sph_shavite512_init(&ctx_shavite);
-    sph_shavite512 (&ctx_shavite, input, 80);
-    sph_shavite512_close(&ctx_shavite, hash);
+    // JH;
+    sph_jh512_init(&ctx_jh);
+    sph_jh512 (&ctx_jh, input, 80);
+    sph_jh512_close(&ctx_jh, (void*) hash);
 
-    sph_shavite512_init(&ctx_shavite);
-    sph_shavite512(&ctx_shavite, hash, 64);
-    sph_shavite512_close(&ctx_shavite, hash);
+    // KECCAK;
+    sph_keccak512_init(&ctx_keccak);
+    sph_keccak512 (&ctx_keccak, (const void*) hash, 64);
+    sph_keccak512_close(&ctx_keccak, (void*) hash);
+
+    // ECHO
+    sph_echo512_init(&ctx_echo);
+    sph_echo512 (&ctx_echo, (const void*) hash, 64);
+    sph_echo512_close(&ctx_echo, (void*) hash);
 
     memcpy(state, hash, 32);
 }
 
+void tribus_regenhash(struct work *work)
+{
+    uint32_t data[20];
+    char *scratchbuf;
+    uint32_t *nonce = (uint32_t *)(work->data + 76);
+    uint32_t *ohash = (uint32_t *)(work->hash);
+
+    be32enc_vect(data, (const uint32_t *)work->data, 19);
+    data[19] = htobe32(*nonce);
+    trihash(ohash, data);
+}
+
+#if 0
 static const uint32_t diff1targ = 0x0000ffff;
 
-
 /* Used externally as confirmation of correct OCL code */
-int inkcoin_test(unsigned char *pdata, const unsigned char *ptarget, uint32_t nonce)
+int tribus_test(unsigned char *pdata, const unsigned char *ptarget, uint32_t nonce)
 {
 	uint32_t tmp_hash7, Htarg = le32toh(((const uint32_t *)ptarget)[7]);
 	uint32_t data[20], ohash[8];
@@ -76,7 +100,7 @@ int inkcoin_test(unsigned char *pdata, const unsigned char *ptarget, uint32_t no
 	be32enc_vect(data, (const uint32_t *)pdata, 19);
 	data[19] = htobe32(nonce);
 	//scratchbuf = alloca(SCRATCHBUF_SIZE);
-	inkhash(ohash, data);
+	trihash(ohash, data);
 	tmp_hash7 = be32toh(ohash[7]);
 
 	applog(LOG_DEBUG, "htarget %08lx diff1 %08lx hash %08lx",
@@ -90,19 +114,7 @@ int inkcoin_test(unsigned char *pdata, const unsigned char *ptarget, uint32_t no
 	return 1;
 }
 
-void inkcoin_regenhash(struct work *work)
-{
-        uint32_t data[20];
-        char *scratchbuf;
-        uint32_t *nonce = (uint32_t *)(work->data + 76);
-        uint32_t *ohash = (uint32_t *)(work->hash);
-
-        be32enc_vect(data, (const uint32_t *)work->data, 19);
-        data[19] = htobe32(*nonce);
-        inkhash(ohash, data);
-}
-
-bool scanhash_inkcoin(struct thr_info *thr, const unsigned char __maybe_unused *pmidstate,
+bool scanhash_tribus(struct thr_info *thr, const unsigned char __maybe_unused *pmidstate,
 		     unsigned char *pdata, unsigned char __maybe_unused *phash1,
 		     unsigned char __maybe_unused *phash, const unsigned char *ptarget,
 		     uint32_t max_nonce, uint32_t *last_nonce, uint32_t n)
@@ -121,7 +133,7 @@ bool scanhash_inkcoin(struct thr_info *thr, const unsigned char __maybe_unused *
 
 		*nonce = ++n;
 		data[19] = (n);
-		inkhash(ostate, data);
+		trihash(ostate, data);
 		tmp_hash7 = (ostate[7]);
 
 		applog(LOG_INFO, "data7 %08lx",
@@ -142,6 +154,5 @@ bool scanhash_inkcoin(struct thr_info *thr, const unsigned char __maybe_unused *
 
 	return ret;
 }
-
-
+#endif
 

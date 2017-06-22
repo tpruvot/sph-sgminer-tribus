@@ -499,6 +499,11 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 			strcpy(filename, SIFCOIN_KERNNAME".cl");
 			strcpy(binaryfilename, SIFCOIN_KERNNAME);
 			break;
+		case KL_TRIBUS:
+			applog(LOG_WARNING, "Kernel Tribus is experimental.");
+			strcpy(filename, TRIBUS_KERNNAME".cl");
+			strcpy(binaryfilename, TRIBUS_KERNNAME);
+			break;
 		case KL_NONE: /* Shouldn't happen */
 			break;
 	}

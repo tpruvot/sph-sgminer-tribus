@@ -44,4 +44,11 @@ lib/warn-on-use.h
 
 mkinstalldirs
 
+libtool
+ltmain.sh
+m4/
+*.a
+*.la
+.dirstamp
+.libs
 *.swp

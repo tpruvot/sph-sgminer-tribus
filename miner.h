@@ -386,6 +386,7 @@ enum cl_kernels {
 	KL_INKCOIN,
 	KL_ANIMECOIN,
 	KL_SIFCOIN,
+	KL_TRIBUS,
 	KL_DARKCOIN,	// kernels starting from this will have difficulty calculated by using bitcoin algorithm
 	KL_MYRIADCOIN_GROESTL,
 	KL_FUGUECOIN,
